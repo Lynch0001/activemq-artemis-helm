@@ -10,16 +10,16 @@ data:
     <configuration xmlns="urn:activemq" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd" xmlns:xi="http://www.w3.org/2001/XInclude">
       <core xmlns="urn:activemq:core" xsi:schemaLocation="urn:activemq:core ">
 
-        <xi:include href="../etc-override/connectors.xml"/>
+        <xi:include href="../artemis-instance/etc-override/connectors.xml"/>
 
-        <xi:include href="../etc-override/addresses.xml"/>
-        <xi:include href="../etc-override/address-settings.xml" />
+        <xi:include href="../artemis-instance/etc-override/addresses.xml"/>
+        <xi:include href="../artemis-instance/etc-override/address-settings.xml" />
 
         <cluster-user>{{ .Values.auth.clusterUser }}</cluster-user>
-        <xi:include href="../etc-override/clustering.xml" />
+        <xi:include href="../artemis-instance/etc-override/clustering.xml" />
 
-        <xi:include href="../etc-override/broadcast.xml"/>
-        <xi:include href="../etc-override/discovery.xml"/>
+        <xi:include href="../artemis-instance/etc-override/broadcast.xml"/>
+        <xi:include href="../artemis-instance/etc-override/discovery.xml"/>
 
         {{- range $key, $value := .Values.core }}
         <{{ kebabcase $key }}>{{ $value }}</{{ kebabcase $key }}>
@@ -32,18 +32,18 @@ data:
     <configuration xmlns="urn:activemq" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd" xmlns:xi="http://www.w3.org/2001/XInclude">
       <core xmlns="urn:activemq:core" xsi:schemaLocation="urn:activemq:core ">
 
-        <xi:include href="../etc-override/connectors.xml"/>
+        <xi:include href="../artemis-instance/etc-override/connectors.xml"/>
 
         <cluster-user>{{ .Values.auth.clusterUser }}</cluster-user>
-        <xi:include href="../etc-override/clustering.xml" />
+        <xi:include href="../artemis-instance/etc-override/clustering.xml" />
 
-        <xi:include href="../etc-override/broadcast.xml"/>
-        <xi:include href="../etc-override/discovery.xml"/>
+        <xi:include href="../artemis-instance/etc-override/broadcast.xml"/>
+        <xi:include href="../artemis-instance/etc-override/discovery.xml"/>
 
-        <xi:include href="../etc-override/addresses.xml"/>
-        <xi:include href="../etc-override/address-settings.xml" />
+        <xi:include href="../artemis-instance/etc-override/addresses.xml"/>
+        <xi:include href="../artemis-instance/etc-override/address-settings.xml" />
 
-        <xi:include href="../etc-override/ha-live.xml" />
+        <xi:include href="../artemis-instance/etc-override/ha-live.xml" />
 
         {{- range $key, $value := .Values.core }}
         <{{ kebabcase $key }}>{{ $value }}</{{ kebabcase $key }}>
@@ -56,18 +56,18 @@ data:
     <configuration xmlns="urn:activemq" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="urn:activemq /schema/artemis-configuration.xsd" xmlns:xi="http://www.w3.org/2001/XInclude">
       <core xmlns="urn:activemq:core" xsi:schemaLocation="urn:activemq:core ">
 
-        <xi:include href="../etc-override/connectors.xml"/>
+        <xi:include href="../artemis-instance/etc-override/connectors.xml"/>
 
         <cluster-user>{{ .Values.auth.clusterUser }}</cluster-user>
-        <xi:include href="../etc-override/clustering.xml" />
+        <xi:include href="../artemis-instance/etc-override/clustering.xml" />
 
-        <xi:include href="../etc-override/broadcast.xml"/>
-        <xi:include href="../etc-override/discovery.xml"/>
+        <xi:include href="../artemis-instance/etc-override/broadcast.xml"/>
+        <xi:include href="../artemis-instance/etc-override/discovery.xml"/>
 
-        <xi:include href="../etc-override/addresses.xml"/>
-        <xi:include href="../etc-override/address-settings.xml" />
+        <xi:include href="../artemis-instance/etc-override/addresses.xml"/>
+        <xi:include href="../artemis-instance/etc-override/address-settings.xml" />
 
-        <xi:include href="../etc-override/ha-backup.xml" />
+        <xi:include href="../artemis-instance/etc-override/ha-backup.xml" />
 
         {{- range $key, $value := .Values.core }}
         <{{ kebabcase $key }}>{{ $value }}</{{ kebabcase $key }}>
@@ -77,7 +77,7 @@ data:
 
   connectors.xml: |
     <connectors xmlns="urn:activemq:core">
-      <connector name="netty">tcp://$EXTERNAL_IP:61616</connector>
+      <connector name="netty">tcp://$EXTERNAL_NAME.$EXTERNAL_NAMESPACE.artemis.svc.cluster.local:61616</connector>
     </connectors>
 
   clustering.xml: |
@@ -95,7 +95,7 @@ data:
   broadcast.xml: |
     <broadcast-groups xmlns="urn:activemq:core">
       <broadcast-group name="jgroups-broadcast">
-        <jgroups-file>jgroups/jgroups-discovery.xml</jgroups-file>
+        <jgroups-file>jgroups-discovery.xml</jgroups-file>
         <jgroups-channel>activemq_broadcast_channel</jgroups-channel>
         <connector-ref>netty</connector-ref>
       </broadcast-group>
@@ -104,7 +104,7 @@ data:
   discovery.xml: |
     <discovery-groups  xmlns="urn:activemq:core" >
       <discovery-group name="jgroups-discovery">
-          <jgroups-file>jgroups/jgroups-discovery.xml</jgroups-file>
+          <jgroups-file>jgroups-discovery.xml</jgroups-file>
           <jgroups-channel>activemq_broadcast_channel</jgroups-channel>
           <refresh-timeout>10000</refresh-timeout>
       </discovery-group>
@@ -116,47 +116,35 @@ data:
         xsi:schemaLocation="urn:org:jgroups http://www.jgroups.org/schema/jgroups.xsd">
 
       <TCP
-        external_addr="match-interface:eth0"
-        bind_addr="match-interface:eth0"
-        bind_port="7800"
-        thread_pool.min_threads="{{ .Values.replicaCount }}"
-        {{- range $key, $value := .Values.jgroups.tcp }}
-        {{ $key }}={{ $value | quote }}
-        {{- end }}
+          bind_addr="${jgroups.bind_addr:site_local}"
+          bind_port="${jgroups.bind_port:7800}"
+          external_addr="${jgroups.external_addr}"
+          external_port="${jgroups.external_port}"
+          thread_pool.min_threads="0"
+          thread_pool.max_threads="200"
+          thread_pool.keep_alive_time="30000"
       />
 
-      <org.jgroups.protocols.kubernetes.KUBE_PING
-        masterProtocol="https"
-        namespace="{{ .Release.Namespace }}"
-        labels="app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/name={{ include "artemis.name" . }}"
-        {{- range $key, $value := .Values.jgroups.k8s }}
-        {{ $key }}={{ $value | quote }}
-        {{- end }}
+      <dns.DNS_PING
+          dns_query="artemis-ping"
+          dns_record_type="${DNS_RECORD_TYPE:A}"
       />
 
-      <MERGE3 max_interval="30000" min_interval="10000"/>
-      <FD_SOCK start_port="9000"/>
-      <FD_ALL timeout="30000" interval="5000"/>
-      <VERIFY_SUSPECT timeout="1500"/>
-      <BARRIER />
-      <pbcast.NAKACK2
-        xmit_interval="500"
-        xmit_table_num_rows="100"
-        xmit_table_msgs_per_row="2000"
-        xmit_table_max_compaction_time="30000"
-        use_mcast_xmit="false"
-        discard_delivered_msgs="true" />
-      <UNICAST3
-        xmit_table_num_rows="100"
-        xmit_table_msgs_per_row="1000"
-        xmit_table_max_compaction_time="30000"/>
-      <pbcast.STABLE
-        stability_delay="1000"
-        desired_avg_gossip="50000"
-        max_bytes="8m"/>
-      <pbcast.GMS print_local_addr="true" join_timeout="3000"/>
-      <MFC max_credits="2M" min_threshold="0.4"/>
-      <FRAG2 frag_size="60K"/>
+      <MERGE3 min_interval="10000"
+              max_interval="30000"/>
+        <FD_SOCK2/>
+        <FD_ALL3 timeout="40000" interval="5000" />
+        <VERIFY_SUSPECT2 timeout="1500"  />
+        <pbcast.NAKACK2 use_mcast_xmit="false" />
+        <UNICAST3 />
+        <pbcast.STABLE desired_avg_gossip="50000"
+                       max_bytes="4M"/>
+        <pbcast.GMS print_local_addr="true" join_timeout="2000"/>
+        <UFC max_credits="2M"
+             min_threshold="0.4"/>
+        <MFC max_credits="2M"
+             min_threshold="0.4"/>
+        <FRAG2 frag_size="60K"  />
       <pbcast.STATE_TRANSFER/>
       <CENTRAL_LOCK />
       <COUNTER/>
@@ -241,3 +229,17 @@ data:
 
       <xsl:template match="*[local-name()='addresses']|*[local-name()='address-settings']"/>
     </xsl:stylesheet>
+
+  login.config: |
+    activemq {
+      org.apache.activemq.artemis.spi.core.security.jaas.PropertiesLoginModule sufficient
+      debug=false
+      reload=true
+      org.apache.activemq.jaas.properties.user="artemis-users.properties"
+      org.apache.activemq.jaas.properties.role="artemis-roles.properties";
+
+      org.apache.activemq.artemis.spi.core.security.jaas.GuestLoginModule sufficient
+      debug=false
+      org.apache.activemq.jaas.guest.user="artemis"
+      org.apache.activemq.jaas.guest.role="admin";
+    };

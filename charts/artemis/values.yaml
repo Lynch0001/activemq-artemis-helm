@@ -1,9 +1,9 @@
-replicaCount: 1
+replicaCount: 2
 
 image:
 ## repository and image tag are required
-#  repository: some/image
-#  tag: 2.17.0
+  repository: apache/activemq-artemis
+  tag: 2.31.2
   pullPolicy: IfNotPresent
   pullSecrets: []
 
@@ -14,7 +14,7 @@ initContainerImage:
 
 resources:
   limits:
-    memory: 256Mi
+    memory: 1000Mi
   requests:
     cpu: 100m
     memory: 256Mi
@@ -23,10 +23,10 @@ resources:
 javaOpts: ""
 
 persistence:
-  enabled: false
+  enabled: true
   accessModes:
     - ReadWriteOnce
-  storageSize: 8Gi
+  storageSize: 100Mi
 
 # livenessProbe:
   # httpGet:
@@ -34,11 +34,11 @@ persistence:
   # initialDelaySeconds: 120
   # periodSeconds: 10
 
-readinessProbe:
-  tcpSocket:
-    port: netty
-  initialDelaySeconds: 5
-  periodSeconds: 10
+#readinessProbe:
+#  tcpSocket:
+#    port: netty
+#  initialDelaySeconds: 5
+#  periodSeconds: 10
 
 metrics:
   ## metrics.enabled if `true` export prometheus metrics
@@ -87,6 +87,9 @@ core:
 addresses:
   - name: DLQ
   - name: ExpiryQueue
+  - name: test1
+  - name: test2
+
 
 addressSettings:
   - match: "#"

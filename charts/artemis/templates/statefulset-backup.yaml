@@ -21,6 +21,10 @@ spec:
       labels:
         {{- include "artemis.labels.backup" . | nindent 8 }}
     spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 1001
+        fsGroup: 1001
       {{- include "artemis.statefulset.spec" . | nindent 6 }}
           - key: broker-ha-backup.xml
             path: broker-00.xml

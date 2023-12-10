@@ -77,25 +77,38 @@ initContainers:
     - bash
   args:
     - -c
-    - cp /tmp/config/*.{xml,xslt} /tmp/etc-override/
+    - cp /tmp/config/*.* /tmp/etc-override/
   volumeMounts:
   - name: config
     mountPath: /tmp/config
   - name: etc-override
     mountPath: /tmp/etc-override
-- name: set-pod-ip
+- name: set-connector-vars
   image: {{ .Values.initContainerImage.repository }}:{{ .Values.initContainerImage.tag }}
   imagePullPolicy: {{ .Values.initContainerImage.pullPolicy}}
   command:
-    - bash
-  args:
-    - -c
-    - sed -i 's/$EXTERNAL_IP/'"$POD_IP"'/' /tmp/etc-override/connectors.xml
+    - sh
+    - "-c"
+    - |
+      bash <<'EOF'
+      echo "setting connector podname and namespace"
+      sed -i 's/$EXTERNAL_NAME/'"$POD_NAME"'/' /tmp/etc-override/connectors.xml
+      sed -i 's/$EXTERNAL_NAMESPACE/'"$POD_NAMESPACE"'/' /tmp/etc-override/connectors.xml
+      echo "connector podname and namespace set"
+      EOF
   env:
   - name: POD_IP
     valueFrom:
       fieldRef:
         fieldPath: status.podIP
+  - name: POD_NAME
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.name
+  - name: POD_NAMESPACE
+    valueFrom:
+      fieldRef:
+        fieldPath: metadata.namespace
   volumeMounts:
   - name: etc-override
     mountPath: /tmp/etc-override
@@ -129,6 +142,42 @@ initContainers:
   volumeMounts:
   - name: artemis-users
     mountPath: /tmp/artemis
+- name: config-check-main
+  image: {{ required "image repository is required" .Values.image.repository }}:{{ required "image tag is required" .Values.image.tag }}
+  imagePullPolicy: {{ .Values.image.pullPolicy}}
+  command:
+    - sh
+    - "-c"
+    - |
+      bash <<'EOF'
+      echo "copying broker-00 to ./etc"
+      cp -f ./etc-override/broker-00.xslt ./etc
+      cp -f ./etc-override/login.config ./etc
+      echo "Listing ./etc config files"
+      ls ./etc
+      echo "Listing artemis-instance/etc config files"
+      ls /var/lib/artemis-instance/etc
+      echo "Listing artemis-instance/override config files"
+      ls /var/lib/artemis-instance/etc-override
+      EOF
+  securityContext:
+    privileged: true
+  volumeMounts:
+  - name: data
+    mountPath: /var/lib/artemis-instance/data
+  - name: empty-config
+    mountPath: /var/lib/artemis/etc
+  - name: etc-override
+    mountPath: /var/lib/artemis-instance/etc-override
+  - name: artemis-users
+    mountPath: /var/lib/artemis-instance/etc-override/artemis-users.properties
+    subPath: artemis-users.properties
+  - name: artemis-users
+    mountPath: /var/lib/artemis-instance/etc-override/artemis-roles.properties
+    subPath: artemis-roles.properties
+  - name: login-config
+    mountPath: /var/lib/artemis-instance/etc-override/login.config
+    subPath: login.config
 containers:
 - name: activemq-artemis
   image: {{ required "image repository is required" .Values.image.repository }}:{{ required "image tag is required" .Values.image.tag }}
@@ -185,17 +234,14 @@ containers:
   {{- end }}
   volumeMounts:
   - name: data
-    mountPath: /var/lib/artemis/data
+    mountPath: /var/lib/artemis-instance/data
+  - name: empty-config
+    mountPath: /var/lib/artemis/etc
   - name: etc-override
-    mountPath: /var/lib/artemis/etc-override
+    mountPath: /var/lib/artemis-instance/etc-override
   - name: jgroups
-    mountPath: /var/lib/artemis/etc/jgroups
-  - name: artemis-users
-    mountPath: /var/lib/artemis/etc/artemis-users.properties
-    subPath: artemis-users.properties
-  - name: artemis-users
-    mountPath: /var/lib/artemis/etc/artemis-roles.properties
-    subPath: artemis-roles.properties
+    mountPath: /var/lib/artemis-instance/etc/jgroups-discovery.xml
+    subPath: jgroups-discovery.xml
 serviceAccount: {{ include "artemis.fullname" . }}
 {{- if .Values.podSecurityContext }}
 securityContext:
@@ -218,6 +264,8 @@ imagePullSecrets:
   {{- toYaml . | nindent 2 }}
 {{- end }}
 volumes:
+- name: empty-config
+  emptyDir: {}
 - name: etc-override
   emptyDir: {}
 - name: artemis-users
@@ -250,6 +298,14 @@ volumes:
       path: discovery.xml
     - key: broker-00.xslt
       path: broker-00.xslt
+    - key: broker.xml
+      path: broker.xml
+- name: login-config
+  configMap:
+    name: {{ include "artemis.fullname" . }}
+    items:
+    - key: login.config
+      path: login.config
 {{- end -}}
 
 {{- define "artemis.statefulset.volumeclaim" -}}
